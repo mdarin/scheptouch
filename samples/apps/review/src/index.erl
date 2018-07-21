@@ -5,9 +5,17 @@
 -include_lib("n2o/include/wf.hrl").
 
 main() ->
-    case wf:user() of
-         undefined -> wf:redirect("login.htm"), redirect_wait();
-         _ -> #dtl{file = "index", app=review,bindings=[{body,body()},{list,list()},{javascript,(?MODULE:(wf:config(n2o,mode,dev)))()}]} end.
+	case wf:user() of
+		undefined -> 
+			wf:redirect("login.htm"),
+			redirect_wait();
+		_ -> 
+			#dtl{file = "index", app=review,bindings=[
+				{body,body()},
+				{list,list()},
+				{javascript,(?MODULE:(wf:config(n2o,mode,dev)))()}
+			]} 
+	end.
 
 prod() ->   [ #script{src="/static/review.min.js"} ].
 dev()  -> [ [ #script{src=lists:concat(["/n2o/protocols/",X,".js"])} || X <- [bert,nitrogen] ],
@@ -15,44 +23,73 @@ dev()  -> [ [ #script{src=lists:concat(["/n2o/protocols/",X,".js"])} || X <- [be
 
 redirect_wait() -> #dtl{}.
 list() -> "<iframe src=http://synrc.space/apps/"++code()++" frameborder=0 width=700 height=1250></iframe>".
-code() -> case wf:q(<<"code">>) of undefined  -> "../privacy.htm";
-                                    Code -> wf:to_list(wf:depickle(Code)) end.
+
+code() -> 
+	case wf:q(<<"code">>) of 
+		undefined  -> 
+			"../privacy.htm";
+		Code -> 
+			wf:to_list(wf:depickle(Code)) 
+	end.
 
 body() ->
-    wf:update(heading,#b{id=heading,body="Review: " ++ code()}),
-    wf:update(logout,#button{id=logout, body="Logout " ++ wf:user(), postback=logout}),
-    [ #span{id=upload},#button { id=send, body= <<"Chat">>, postback=chat, source=[message] } ].
+	wf:update(heading,
+		#b{ id=heading, body="Review: " ++ code() }
+	),
+	wf:update(logout,
+		#button{ id=logout, body="Logout " ++ wf:user(), postback=logout }
+	), 
+	[ 
+		#span{ id=upload },
+		#button{ id=send, body= <<"Chat">>, postback=chat, source=[message] } 
+	].
 
 event(init) ->
+    wf:info(?MODULE,"~p *Init~n",[?MODULE]),
     Room = code(),
+    wf:info(?MODULE,"::room -> ~p~n",[Room]),
     wf:update(upload,#upload{id=upload}),
     wf:reg(n2o_session:session_id()),
+    wf:info(?MODULE,"::session_id -> ~p~n",[n2o_session:session_id()]),
     wf:reg({topic,Room}),
     Res = wf:async("looper",fun index:loop/1),
     n2o_async:send("looper","waterline"),
-    wf:info(?MODULE,"Async Process Created: ~p at Page Pid ~p~n",[Res,self()]),
-    [ event({client,{E#entry.from,E#entry.media}}) || E <- kvs:entries(kvs:get(feed,{room,Room}),entry,10) ];
+    %wf:info(?MODULE,"Async Process Created: ~p at Page Pid ~p~n",[Res,self()]),
+    [ 
+			event({client,{E#entry.from,E#entry.media}}) 
+			|| E <- kvs:entries(kvs:get(feed,{room,Room}),entry,10) 
+		];
 
 event(logout) ->
+    wf:info(?MODULE,"*Logout~n",[]),
     wf:logout(),
     wf:redirect("login.htm");
 
 event(chat) ->
+    wf:info(?MODULE,"*Chat~n",[]),
     User = wf:user(),
     Message = wf:q(message),
-    wf:info(?MODULE,"Chat pressed: ~p~n",[Message]),
+    wf:info(?MODULE,"::message -> ~p~n",[Message]),
     Room = code(),
-    kvs:add(#entry{id=kvs:next_id("entry",1),from=wf:user(),feed_id={room,Room},media=Message}),
+		Record = #entry{
+			id=kvs:next_id("entry",1),
+			from=wf:user(),
+			feed_id={room,Room},
+			media=Message
+		},
+    kvs:add(Record),
     wf:send({topic,Room},#client{data={User,Message}});
 
 event(#client{data={User,Message}}) ->
+    wf:info(?MODULE,"*HTML~n",[]),
     wf:wire(#jq{target=message,method=[focus,select]}),
     HTML = wf:to_list(Message),
-    wf:info(?MODULE,"HTML: ~tp~n",[HTML]),
+    %wf:info(?MODULE,"HTML: ~tp~n",[HTML]),
     DTL = #dtl{file="message",app=review,bindings=[{user,User},{color,"gray"},{message,HTML}]},
     wf:insert_top(history, wf:jse(wf:render(DTL)));
 
 event(#bin{data=Data}) ->
+    wf:info(?MODULE,"*Binary~n",[]),
     wf:info(?MODULE,"Binary Delivered ~p~n",[Data]),
     #bin{data = "SERVER"};
 
@@ -64,10 +101,12 @@ event(#ftp{sid=Sid,filename=Filename,status={event,stop}}=Data) ->
     event(chat);
 
 event(Event) ->
-    wf:info(?MODULE,"Event: ~p", [Event]),
+    wf:info(?MODULE," *_Event -> ~p", [Event]),
     ok.
 
 loop(M) ->
-    DTL = #dtl{file="message",app=review,bindings=[{user,"system"},{message,M},{color,"silver"}]},
-    wf:insert_top(history, wf:jse(wf:render(DTL))),
-    wf:flush().
+	wf:info(?MODULE,"*Loop~n",[]),
+	DTL = #dtl{file="message",app=review,bindings=[{user,"system"},{message,M},{color,"silver"}]},
+	wf:insert_top(history, 
+	wf:jse(wf:render(DTL))),
+	wf:flush().
