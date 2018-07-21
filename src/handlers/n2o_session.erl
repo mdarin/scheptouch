@@ -4,10 +4,12 @@
 -include_lib("stdlib/include/ms_transform.hrl").
 -compile(export_all).
 
+init(State,Ctx) -> 
+	case wf:config(n2o,auto_session) of
+		disabled -> {ok,State,Ctx};
+		_ -> n2o_session:ensure_sid(State,Ctx,[]) 
+	end.
 finish(State,Ctx) -> {ok,State,Ctx}.
-init(State,Ctx) -> case wf:config(n2o,auto_session) of
-                        disabled -> {ok,State,Ctx};
-                        _ -> n2o_session:ensure_sid(State,Ctx,[]) end.
 
 ensure_sid(State, Ctx, []) -> ensure_sid(State, Ctx, site);
 ensure_sid(State, Ctx, From) ->
