@@ -80,7 +80,6 @@ event(init) ->
 		ok
 	end,
 	% подгрузить историю переписки
-	%[wf:send({topic,Room}, #client{data={E#entry.from,E#entry.media}})
 	[event({client,{E#entry.from, E#entry.media}}) 
 		|| E <- kvs:entries(kvs:get(feed,{room,Room}),entry,10)];
 
@@ -289,7 +288,8 @@ pisikak({init,Botname}) ->
 	Room = filename:dirname(Botname), 
 	% сообщить о том что на мозг осела пыль
 	n2o_async:send("looper2", User ++ " has joined to " ++ Room ++ " room!"),
-	pisikak({phrase,Botname});
+	%pisikak({phrase,Botname});
+	wf:send({chatbot,Botname}, {phrase,Botname});
 	
 
 pisikak({phrase,Botname}) ->
@@ -315,7 +315,8 @@ pisikak({phrase,Botname}) ->
 	% опубликовать творчество этого периода
 	event(#{room => Room, user => User, message => Reply}),
 	wf:flush(),
-	pisikak({phrase,Botname}).
+	%pisikak({phrase,Botname}).
+	wf:send({chatbot,Botname}, {phrase,Botname}).
 
 
 
