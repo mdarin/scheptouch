@@ -23,15 +23,13 @@ main() ->
 event(init) ->
 	wf:info(?MODULE,"*Init",[]),
 
-	%kvs:add(#feed{room=[{room,"mile"}],users=["pisikak"]}),
-
 	% получить уже обжитые фиды
 	Feeds = kvs:all(feed),
-	wf:info(?MODULE,"feeds -> ~p~n",[Feeds]),	
+	%wf:info(?MODULE,"feeds -> ~p~n",[Feeds]),	
 	%TODO(darin-m): вывести надо бы...
 
 	Users = kvs:all(user),
-	wf:info(?MODULE,"users -> ~p~n",[Users]),
+	%wf:info(?MODULE,"users -> ~p~n",[Users]),
 
 	ok;	
 

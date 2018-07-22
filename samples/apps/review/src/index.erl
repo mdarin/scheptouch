@@ -26,29 +26,23 @@ main() ->
 
 event(init) ->
 	wf:info(?MODULE,"*Init~n",[]),
-
 	User = user(),
 	Room = room(),
+	Fullname = Room ++ "/" ++ User,
+	% запонить пользователя
+	kvs:put(#user{id=Fullname, feed_id=Room, username=User}),
 	wf:info(?MODULE,"room -> ~p~n",[Room]),
 	wf:info(?MODULE,"user -> ~p~n",[User]),
-
 	wf:update(upload,#upload{id=upload}),
-
 	SessionID = n2o_session:session_id(), 
-	%wf:info(?MODULE,"session_id -> ~p~n",[SessionID]),
-
-	% Ассоциировать процесс с пулом gproc(зарегистрировать)
 	% примкнуть к ОПГ процессов по критерию "команта"
 	wf:reg({topic,Room}),
-
 	% создать парочку идиотов прислужников дьявола
 	Res = wf:async("looper",fun index:loop/1),
 	n2o_async:send("looper","waterline"),
-	n2o_async:send("looper","my first message!"),
 	%wf:info(?MODULE,"Async Process Created: ~p at Page Pid ~p~n",[Res,self()]),
 	Res2 = wf:async("looper2",fun index:loop2/1),
-	n2o_async:send("looper2","my second message from another!"),
-	
+	n2o_async:send("looper2","yet anohter waterline"),
 	% получить имя бота-собеседника = Канал/Имя
 	Botname = Room ++ "/" ++ "silent_bob",
 	wf:info("botname -> ~p~n", [Botname]),
@@ -70,7 +64,6 @@ event(init) ->
 		wf:info(?MODULE,"IGNORE, already started ~p~n",[Botname]),
 		ok
 	end,
-
 	% получить имя бота-участника = Канал/Имя
 	Botname2 = Room ++ "/" ++ "pisikak",
 	wf:info("botname -> ~p~n", [Botname2]),
@@ -86,14 +79,9 @@ event(init) ->
 		wf:info(?MODULE,"IGNORE, already started ~p~n",[Botname2]),
 		ok
 	end,
-
- 	% показать историю сообщений в канале
-	%[wf:info(?MODULE,"**** from -> ~p  media -> ~p~n",[E#entry.from,E#entry.media])
-	%	|| E <- kvs:entries(kvs:get(feed,{room,Room}),entry,10)],
-	
 	% подгрузить историю переписки
-	[wf:send({topic,Room}, #client{data={E#entry.from,E#entry.media}})
-	%[event({client,{E#entry.from, E#entry.media}}) 
+	%[wf:send({topic,Room}, #client{data={E#entry.from,E#entry.media}})
+	[event({client,{E#entry.from, E#entry.media}}) 
 		|| E <- kvs:entries(kvs:get(feed,{room,Room}),entry,10)];
 
 
@@ -104,7 +92,9 @@ event(logout) ->
 	Room = room(),
 	wf:info(?MODULE,"room -> ~p~n",[Room]),
 	wf:info(?MODULE,"user -> ~p~n",[User]),
-	%TODO удалить всё и почистить
+	% сжечь карточку выздоравливающего пациента
+	Fullname = Room ++ "/" ++ User,
+	kvs:delete(user,Fullname),
 	wf:logout(),
 	% metallica:play('turn the page'),
 	wf:redirect("login.htm");
@@ -112,54 +102,41 @@ event(logout) ->
 
 event(chat) ->
 	wf:info(?MODULE,"*Chat human~n",[]),
-
 	% получить данные из параметров запроса
 	User = user(),
-	wf:info(?MODULE,"user -> ~p~n",[User]),
-
 	Room = room(),
-	wf:info(?MODULE,"room -> ~p~n",[Room]),
-
 	Message = wf:q(message),
+	wf:info(?MODULE,"room -> ~p~n",[Room]),
+	wf:info(?MODULE,"user -> ~p~n",[User]),
 	wf:info(?MODULE,"message -> ~p~n",[Message]),
-	
-	event({chat, #{room => Room, user => User, message => Message}});
-	%wf:send({topic,Room},{chat, #{room => Room, user => User, message => Message}});
+	event(#{room => Room, user => User, message => Message});
 
 
-event({chat, #{room := Room, user := User, message := Message}}) ->
+event(#{room := Room, user := User, message := Message}) ->
 	wf:info(?MODULE,"*Chat handler~n",[]),
 	Botname = Room ++ "/silent_bob",
 	wf:info(?MODULE,"botname -> ~p~n", [Botname]),
-
 	% история переписки полнится, ярчайший бред продолжается
 	Id = kvs:next_id("entry",1),
-	wf:info(?MODULE,"id -> ~p~n",[Id]),
 	Record = #entry{
-		id=Id,%kvs:next_id("entry",1),
+		id=Id,
 		from=User,
 		feed_id={room,Room},
 		media=Message
 	},
 	kvs:add(Record),
-
 	% отправить в процесс отправить боту на размышление 
-	wf:send({chatbot,Botname}, {question,User,Botname,Message}),
-	%n2o_async:send(Botname, {question,User,Botname,Message}),
-
+	wf:send({chatbot,Botname}, #{type => question, from => User, to => Botname, message => Message}),
 	% опубликовать очередную светлую мысль в на первой полосе Дэйли телеграф
 	wf:send({topic,Room}, #client{data={User,Message}});
-
+	
 
 event(#client{data={User,Message}}) ->
 	wf:info(?MODULE,"*Show message[~p]~n",[self()]),
-
 	% увязать событые с элементом фомры, что ниточку прявязат к колокольчику
 	wf:wire(#jq{target=message,method=[focus,select]}),
-
 	M = wf:to_list(Message),
 	wf:info(?MODULE,"m -> ~tp~n",[M]),
-
 	DTL = #dtl{
 		file="message",
 		app=review,
@@ -220,11 +197,42 @@ loop2(M) ->
 	%
 	% она блокирующая в таком исполнении!
 	%
-	timer:sleep(3000),
+	%timer:sleep(3000),
 	%	NOTE: wf:flush/0 should be called to redirect all updates 
 	% and wire actions back to the page process
 	% from its async counterpart.
 	wf:flush().
+
+%
+% Когда речь заходит о ботах, вспоминатся одно из произведений классики киберпанка...
+% <...>
+% – Что значит «ЯМ»?
+%
+% Каждый из нас уже отвечал на этот вопрос тысячу раз, но Бенни давно забыл об этом. Ответил Горристер:
+%
+% – Сначала это значило Ядерный Манипулятор, потом, когда его создатели почувствовали опасность, 
+% – Ярмо Машины, Ярость Маньяка, Ядрена Мать... но уже ничего нельзя было изменить, и, наконец, 
+% сам он, хвастаясь эрудицией, назвал себя ЯМ, что значило... cogito ergo sum... 
+% Я мыслю, следовательно, существую.
+%
+% <...>
+% И ЯМ сказал, очень вежливо, написав на столике из стали неоновым светом буквы:
+%
+% – НЕНАВИЖУ. ПОЗВОЛЬТЕ МНЕ СКАЗАТЬ ВАМ, НАСКОЛЬКО Я ВОЗНЕНАВИДЕЛ ВАС С ТЕХ ПОР, КАК Я НАЧАЛ ЖИТЬ.
+%  МОЯ СИСТЕМА СОСТОИТ ИЗ 38744 МИЛЛИОНОВ МИЛЬ ПЕЧАТНЫХ ПЛАТ НА МОЛЕКУЛЯРНОЙ ОСНОВЕ. ЕСЛИ СЛОВО 
+% «НЕНАВИЖУ» ВЫГРАВИРОВАТЬ НА КАЖДОМ НАНОАНГСТРЕМЕ ЭТИХ СОТЕН МИЛЛИОНОВ МИЛЬ, ТО ЭТО НЕ ВЫРАЗИТ И 
+% БИЛЛИОНОЙ ДОЛИ ТОЙ НЕНАВИСТИ, КОТОРУЮ ИСПЫТЫВАЮ Я В ДАННЫЙ МИКРОМИГ ПО ОТНОШЕНИЮ К ВАМ. НЕНАВИЖУ. 
+% НЕНАВИЖУ.
+% Он делал это, чтобы раскрыть мне глаза на причины, объясняющие, почему он так поступает с нами, 
+% почему он сохранил нас пятерых для своих опытов.
+
+% Мы научили его чувствовать. Мы сделали это нечаянно, и все-таки... Он попал в ловушку. 
+% Он был машиной. Мы предоставили ему возможность думать, но не указали, что делать с результатами 
+% мыслительных процессов. В гневе, в бешенстве он убил почти всех из нас, но высвободиться из ловушки 
+% не мог.
+
+% И чтобы нашему боту не было скучно и он, как ЯМ не придумал уничтожать человечество, 
+% создадим не одного, а сразу двух, пусть общаются, развлекая друг дружку! 
 
 
 % 
@@ -237,28 +245,22 @@ silent_Bob({init,Botname}) ->
 	wf:info(?MODULE,"*silent Bob[~p] (!)~n",[self()]),
 	% зарегистрируем процесс
 	wf:reg({chatbot,Botname}),
-
 	User = filename:basename(Botname),
 	Room = filename:dirname(Botname), 
-
 	% сообщить о том что на мозг осела пыль
 	n2o_async:send("looper2", User ++ " has joined to " ++ Room ++ " room!");
 
 
-silent_Bob({question,Inquirer,Botname,Message}) ->
+silent_Bob(#{type := question, from := Inquirer, to := Botname, message := Message}) ->
 	wf:info(?MODULE,"*silent Bob has a conversaciton~n",[]),
-
 	User = filename:basename(Botname),
 	Room = filename:dirname(Botname), 
 	Reply = Inquirer ++ ", Mmmmm....",
-
 	% имитация длительного процесса(размышелния бота, взаимеодедйтвие с хранилищем, моделью и т.п.)
 	T = rand:uniform(25000) + 1000,
 	timer:sleep(T),
-
 	wf:info(?MODULE,"Q:from -> ~p m -> ~p~n", [Inquirer,Message]),
 	wf:info(?MODULE,"A:to -> ~p m -> ~p~n", [Inquirer,Reply]),
-
 	% история переписки полнится, ярчайший бред продолжается
 	Id = kvs:next_id("entry",1),
 	Record = #entry{
@@ -269,7 +271,6 @@ silent_Bob({question,Inquirer,Botname,Message}) ->
 		media=Reply
 	},
 	kvs:add(Record),
-
 	% опубликовать 
 	wf:send({topic,Room}, #client{data={User,Reply}}),
 	wf:flush().
@@ -282,31 +283,26 @@ silent_Bob({question,Inquirer,Botname,Message}) ->
 % 
 pisikak({init,Botname}) ->
 	wf:info(?MODULE,"*pisikak[~p] (!)~n",[self()]),
-
 	% зарегистрируем процесс
 	wf:reg({chatbot,Botname}),
-
 	User = filename:basename(Botname),
 	Room = filename:dirname(Botname), 
-
 	% сообщить о том что на мозг осела пыль
 	n2o_async:send("looper2", User ++ " has joined to " ++ Room ++ " room!"),
 	pisikak({phrase,Botname});
 	
+
 pisikak({phrase,Botname}) ->
 	wf:info(?MODULE,"*pisikak[~p] *Phrase~n",[self()]),
 	User = filename:basename(Botname),
 	Room = filename:dirname(Botname), 
 	Reply = "Pisikak, pisikak pisi pisi pisi kaakk!",
-
 	% имитация длительного процесса(размышелния бота, взаимеодедйтвие с хранилищем, моделью и т.п.)
 	T = rand:uniform(40000) + 1000,
 	timer:sleep(T),
-
 	wf:info(?MODULE,"room -> ~p~n", [Room]),
 	wf:info(?MODULE,"user -> ~p~n", [User]),
 	wf:info(?MODULE,"phrase -> ~p~n", [Reply]),
-
 	% история переписки полнится, ярчайший бред продолжается
 	Id = kvs:next_id("entry",1),
 	Record = #entry{
@@ -316,14 +312,10 @@ pisikak({phrase,Botname}) ->
 		media=Reply
 	},
 	kvs:add(Record),
-
-	% опубликовать 
-	%wf:send({topic,Room}, {chat, #{room => Room, user => User, message => Reply}}),
-	event({chat, #{room => Room, user => User, message => Reply}}),
-
+	% опубликовать творчество этого периода
+	event(#{room => Room, user => User, message => Reply}),
 	wf:flush(),
 	pisikak({phrase,Botname}).
-	
 
 
 
