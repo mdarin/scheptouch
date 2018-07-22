@@ -22,6 +22,9 @@ main() ->
 
 event(init) ->
 	wf:info(?MODULE,"*Init",[]),
+
+	%kvs:add(#feed{room=[{room,"mile"}],users=["pisikak"]}),
+
 	% получить уже обжитые фиды
 	Feeds = kvs:all(feed),
 	wf:info(?MODULE,"feeds -> ~p~n",[Feeds]),	
@@ -29,6 +32,7 @@ event(init) ->
 
 	Users = kvs:all(user),
 	wf:info(?MODULE,"users -> ~p~n",[Users]),
+
 	ok;	
 
 
@@ -45,11 +49,11 @@ event(login) ->
 	%FIXME(darin-m): комнату, занчит, параметром передаём, а пользоватлея через карман? Ну такое себе решеньице...
 	%wf:user(User),
 
-	% и номер корытца в которое буде осуществляться раздача
+	% добыть номер корытца в которое буде осуществляться раздача
 	Room = wf:to_list(wf:q(room)),
 	wf:info(?MODULE,"room -> ~p~n",[Room]),
 
-	% передать управление и название комнаты(канала) и пользователя как аргументы 
+	% передать управление, название комнаты(канала) и пользователя как аргументы 
 	wf:redirect("index.htm?room=" ++ Room ++ "&user=" ++ User),
 	ok;
 
@@ -63,12 +67,12 @@ event(_Event) ->
 %% page model
 %
 
-
 body() ->
 	[ #span{ id=display }, #br{},
 		#span{ body="Login: " }, #textbox{id=user,autofocus=true}, #br{},
 		#span{ body="Join/Create Feed: " }, #textbox{id=room},
 		#button{ id=loginButton, body="Spawn!",postback=login,source=[user,room]} ].
+
 
 %%
 %% Internals
