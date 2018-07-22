@@ -16,6 +16,9 @@ main() ->
 		]
 	}.
 
+%%
+%% handlers
+%
 
 event(init) ->
 	wf:info(?MODULE,"*Init",[]),
@@ -56,12 +59,9 @@ event(_Event) ->
 	[].
 
 
-folders() -> 
-	string:join(
-		[filename:basename(F)
-			|| F<-filelib:wildcard(code:priv_dir(review) ++ "/snippets/*/")], 
-		","
-	).
+%%
+%% page model
+%
 
 
 body() ->
@@ -70,3 +70,13 @@ body() ->
 		#span{ body="Join/Create Feed: " }, #textbox{id=room},
 		#button{ id=loginButton, body="Spawn!",postback=login,source=[user,room]} ].
 
+%%
+%% Internals
+%
+
+folders() -> 
+	string:join(
+		[filename:basename(F)
+			|| F<-filelib:wildcard(code:priv_dir(review) ++ "/snippets/*/")], 
+		","
+	).
