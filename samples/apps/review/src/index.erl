@@ -33,6 +33,7 @@ event(init) ->
 	kvs:put(#user{id=Fullname, feed_id=Room, username=User}),
 	wf:info(?MODULE,"room -> ~p~n",[Room]),
 	wf:info(?MODULE,"user -> ~p~n",[User]),
+	wf:info(?MODULE,"fullname -> ~p~n",[Fullname]),
 	wf:update(upload,#upload{id=upload}),
 	SessionID = n2o_session:session_id(), 
 	% примкнуть к ОПГ процессов по критерию "команта"
@@ -160,6 +161,7 @@ event(#{room := Room, user := User, message := Message}) ->
 	wf:send({chatbot,Botname}, #{type => question, from => User, to => Botname, message => Message}),
 	% опубликовать очередную светлую мысль в на первой полосе Дэйли телеграф
 	event(#client{data={User,Message}});
+	%wf:send({topic,Room}, #client{data={User,Message}});
 	
 
 event(#client{data={User,Message}}) ->
@@ -270,6 +272,7 @@ loop2(M) ->
 %
 silent_Bob({stop,Botname}) -> 
 	wf:info(?MODULE,"*silent Bob[~p] *Exit~n",[self()]),
+	wf:info(?MODULE,"*silent Bob is slowing down gracefully now...~n",[]),
 	% освободить имя
 	wf:unreg({chatbot,Botname}),
 	User = filename:basename(Botname),
@@ -324,6 +327,7 @@ silent_Bob(#{type := question, from := Inquirer, to := Botname, message := Messa
 % 
 pisikak({stop,Botname}) -> 
 	wf:info(?MODULE,"*pisikak[~p] *Exit~n",[self()]),
+	wf:info(?MODULE,"*pisikak is slowing down gracefully now...~n",[]),
 	% освободить имя
 	wf:unreg({chatbot,Botname}),
 	User = filename:basename(Botname),
