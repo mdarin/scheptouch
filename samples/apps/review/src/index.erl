@@ -161,7 +161,6 @@ event(#{room := Room, user := User, message := Message}) ->
 	wf:send({chatbot,Botname}, #{type => question, from => User, to => Botname, message => Message}),
 	% опубликовать очередную светлую мысль в на первой полосе Дэйли телеграф
 	event(#client{data={User,Message}});
-	%wf:send({topic,Room}, #client{data={User,Message}});
 	
 
 event(#client{data={User,Message}}) ->
@@ -179,7 +178,6 @@ event(#client{data={User,Message}}) ->
 
 
 event(#bin{data=Data}) ->
-	wf:info(?MODULE,"*Binary~n",[]),
 	wf:info(?MODULE,"Binary Delivered ~p~n",[Data]),
 	#bin{data = "SERVER"};
 
