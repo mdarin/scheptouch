@@ -44,7 +44,7 @@ start(#handler{class=Class,name=Name,module=Module,group=Group} = Async) ->
     case supervisor:start_child(Group,ChildSpec) of
          {ok,Pid}   -> {Pid,Async#handler.name};
          {ok,Pid,_} -> {Pid,Async#handler.name};
-         Else     -> Else end.
+         Else     ->  wf:info(?MODULE,"Async Start Error -> ~p~n",[Else]), Else end.
 
 init_context(undefined) -> [];
 init_context(Req) ->

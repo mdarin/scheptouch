@@ -47,41 +47,41 @@ event(init) ->
 	Botname = Room ++ "/" ++ "silent_bob",
 	wf:info("botname -> ~p~n", [Botname]),
 	case  kvs:get(user,Botname) of
-%{ok,#user{id = "mile/jeremy",container = feed,
-%          feed_id = "mile",prev = [],next = [],feeds = [],email = [],
-%          username = "jeremy",password = [],display_name = [],
-%          register_date = [],tokens = [],images = [],names = [],
-%          surnames = [],birth = [],sex = [],date = [],status = [],
-%          zone = [],type = []}}
-	{error,not_found} ->
-	% если бота в канале ещё нет, то запустим его	
-		wf:info(?MODULE,"START ~p~n",[Botname]),
-		wf:async(Botname,fun index:silent_Bob/1),
-		kvs:put(#user{id=Botname, feed_id=Room, username="silent_bob"}),
-		n2o_async:send(Botname, {init,Botname});
-	_ ->
-	% иначе, игнорируем этодедйствие 
-		wf:info(?MODULE,"IGNORE, already started ~p~n",[Botname]),
-		ok
+		{error,not_found} ->
+		% если бота в канале ещё нет, то запустим его	
+			wf:info(?MODULE,"START ~p~n",[Botname]),
+			R1 = wf:async(Botname,fun index:silent_Bob/1),
+			wf:info(?MODULE,"res1 -> ~p~n",[R1]),
+			kvs:put(#user{id=Botname, feed_id=Room, username="silent_bob"}),
+			n2o_async:send(Botname, {init,Botname});
+		_ ->
+		% иначе, игнорируем этодедйствие 
+			wf:info(?MODULE,"IGNORE, already started ~p~n",[Botname]),
+			ok
 	end,
 	% получить имя бота-участника = Канал/Имя
 	Botname2 = Room ++ "/" ++ "pisikak",
 	wf:info("botname -> ~p~n", [Botname2]),
 	case  kvs:get(user,Botname2) of
-	{error,not_found} ->
-	% если бота в канале ещё нет, то запустим его	
-		wf:info(?MODULE,"START ~p~n",[Botname2]),
-		wf:async(Botname2,fun index:pisikak/1),
-		kvs:put(#user{id=Botname2, feed_id=Room, username="pisikak"}),
-		n2o_async:send(Botname2, {init,Botname2});
-	_ ->
-	% иначе, игнорируем этодедйствие 
-		wf:info(?MODULE,"IGNORE, already started ~p~n",[Botname2]),
-		ok
+			{error,not_found} ->
+			% если бота в канале ещё нет, то запустим его	
+				wf:info(?MODULE,"START ~p~n",[Botname2]),
+				R2 = wf:async(Botname2,fun index:pisikak/1),
+				wf:info(?MODULE,"res2 -> ~p~n",[R2]),
+				kvs:put(#user{id=Botname2, feed_id=Room, username="pisikak"}),
+				n2o_async:send(Botname2, {init,Botname2});
+			_ ->
+			% иначе, игнорируем этодедйствие 
+				wf:info(?MODULE,"IGNORE, already started ~p~n",[Botname2]),
+				ok 
 	end,
 	% подгрузить историю переписки
 	[event({client,{E#entry.from, E#entry.media}}) 
 		|| E <- kvs:entries(kvs:get(feed,{room,Room}),entry,10)];
+
+
+event(terminate) ->
+	wf:info(?MODULE,"*Teriminate~n",[]);
 
 
 event(logout) ->
@@ -94,6 +94,38 @@ event(logout) ->
 	% сжечь карточку выздоравливающего пациента
 	Fullname = Room ++ "/" ++ User,
 	kvs:delete(user,Fullname),
+	% сколько там ещё в палате?
+	Users = lists:foldl(
+		fun({user,Fullname,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_},Count) -> Count + 1;
+				(_,Count) -> Count
+		end, 
+	0, kvs:all(user)),
+	wf:info(?MODULE,"ucount -> ~p~n",[Users]),
+	% чекнуть шизофрению
+	if 
+		Users < 3 -> 
+		% если пользоватлеь осталось меньше 3х, значит в канале остались только боты
+			wf:info(?MODULE,"REMOVE CHANNEL ~p~n",[Room]),
+			% санитары больше нужны...
+			Botname = Room ++ "/" ++ "silent_bob",
+			Botname2 = Room ++ "/" ++ "pisikak",
+			% slow down gracefully
+			wf:send({chatbot,Botname}, {stop,Botname}),
+			wf:send({chatbot,Botname2}, {stop,Botname2}),
+			% удалить канал
+			lists:foreach(
+				fun({feed,{room,Room},_,_,_,_}) -> kvs:delete(feed,{room,Room}); 
+						(_) -> ok
+			end, kvs:all(feed)),
+			% удалить пользователей 
+			lists:foreach(
+				fun({user,Fullname,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_}) -> kvs:delete(user,Fullname); 
+						(_) -> ok 
+			end, kvs:all(user));
+		true -> 
+			wf:info(?MODULE,"KEEP ALIVE CHANNEL ~p~n",[Room]),
+			ok
+	end,
 	wf:logout(),
 	% metallica:play('turn the page'),
 	wf:redirect("login.htm");
@@ -124,10 +156,10 @@ event(#{room := Room, user := User, message := Message}) ->
 		media=Message
 	},
 	kvs:add(Record),
-	% отправить в процесс отправить боту на размышление 
+	% отправить боту на размышление 
 	wf:send({chatbot,Botname}, #{type => question, from => User, to => Botname, message => Message}),
 	% опубликовать очередную светлую мысль в на первой полосе Дэйли телеграф
-	wf:send({topic,Room}, #client{data={User,Message}});
+	event(#client{data={User,Message}});
 	
 
 event(#client{data={User,Message}}) ->
@@ -193,10 +225,6 @@ loop2(M) ->
 		bindings=[{user,"system"},{message,M},{color,"silver"}]
 	},
 	wf:insert_top(history, wf:jse(wf:render(DTL))),
-	%
-	% она блокирующая в таком исполнении!
-	%
-	%timer:sleep(3000),
 	%	NOTE: wf:flush/0 should be called to redirect all updates 
 	% and wire actions back to the page process
 	% from its async counterpart.
@@ -240,6 +268,20 @@ loop2(M) ->
 % потому что почти не говорит, но когда он это делает, то произносит глубокие проницательные монологи 
 % и только в соответствующих ситуациях. 
 %
+silent_Bob({stop,Botname}) -> 
+	wf:info(?MODULE,"*silent Bob[~p] *Exit~n",[self()]),
+	% освободить имя
+	wf:unreg({chatbot,Botname}),
+	User = filename:basename(Botname),
+	Room = filename:dirname(Botname), 
+	% удалить канал
+	lists:foreach(
+		fun({feed,{room,Room},_,_,_,_}) -> kvs:delete(feed,{room,Room}); 
+				(_) -> ok
+	end, kvs:all(feed)),
+	ok;
+
+
 silent_Bob({init,Botname}) ->
 	wf:info(?MODULE,"*silent Bob[~p] (!)~n",[self()]),
 	% зарегистрируем процесс
@@ -280,6 +322,20 @@ silent_Bob(#{type := question, from := Inquirer, to := Botname, message := Messa
 % *Играет музыка*
 % "..он молчит и ничего не делает Пи-Си-Как!"
 % 
+pisikak({stop,Botname}) -> 
+	wf:info(?MODULE,"*pisikak[~p] *Exit~n",[self()]),
+	% освободить имя
+	wf:unreg({chatbot,Botname}),
+	User = filename:basename(Botname),
+	Room = filename:dirname(Botname), 
+	% удалить канал
+	lists:foreach(
+		fun({feed,{room,Room},_,_,_,_}) -> kvs:delete(feed,{room,Room}); 
+				(_) -> ok
+	end, kvs:all(feed)),
+	ok;
+
+
 pisikak({init,Botname}) ->
 	wf:info(?MODULE,"*pisikak[~p] (!)~n",[self()]),
 	% зарегистрируем процесс
@@ -288,7 +344,6 @@ pisikak({init,Botname}) ->
 	Room = filename:dirname(Botname), 
 	% сообщить о том что на мозг осела пыль
 	n2o_async:send("looper2", User ++ " has joined to " ++ Room ++ " room!"),
-	%pisikak({phrase,Botname});
 	wf:send({chatbot,Botname}, {phrase,Botname});
 	
 
@@ -314,10 +369,9 @@ pisikak({phrase,Botname}) ->
 	kvs:add(Record),
 	% опубликовать творчество этого периода
 	event(#{room => Room, user => User, message => Reply}),
-	wf:flush(),
-	%pisikak({phrase,Botname}).
-	wf:send({chatbot,Botname}, {phrase,Botname}).
-
+	% и вновь пуститься в рамышления!
+	wf:send({chatbot,Botname}, {phrase,Botname}),
+	wf:flush().
 
 
 %%
