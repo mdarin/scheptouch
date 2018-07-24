@@ -18,8 +18,9 @@ Smarty and sly hello n2o example
 Всё это реализовано на примере поставляемом в комплекте с n2o
 
 Если дело происходит в среде Linux, то лучше бы установить вот эту штуку:
+```
 $ sudo apt-get install inotify-tools
-
+```
 далее, как по учебнику, клонируем 
 ``` 
 $ git clone https://github.com/mdarin/scheptouch.git
