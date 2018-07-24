@@ -27,13 +27,13 @@ $ git clone https://github.com/mdarin/scheptouch.git
 ```
 собираем так
 ```
-$ cd n2o/samples
+$ cd scheptouch/samples
 $ ./mad deps compile plan repl
 ```
 или можно запустиь ленивый скрипт
 
 ```
-$ cd n2o/samples
+$ cd scheptouch/samples
 $ ./scheptoush.sh
 ```
 
