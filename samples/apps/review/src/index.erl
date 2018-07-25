@@ -160,7 +160,8 @@ event(#{room := Room, user := User, message := Message}) ->
 	% отправить боту на размышление 
 	wf:send({chatbot,Botname}, #{type => question, from => User, to => Botname, message => Message}),
 	% опубликовать очередную светлую мысль в на первой полосе Дэйли телеграф
-	event(#client{data={User,Message}});
+	%event(#client{data={User,Message}});
+	wf:send({topic,Room}, #client{data={User,Message}});
 	
 
 event(#client{data={User,Message}}) ->
