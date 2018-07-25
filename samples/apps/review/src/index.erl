@@ -51,7 +51,7 @@ event(init) ->
 		{error,not_found} ->
 		% если бота в канале ещё нет, то запустим его	
 			wf:info(?MODULE,"START ~p~n",[Botname]),
-			R1 = wf:async(Botname,fun index:silent_Bob/1),
+			R1 = wf:async(Botname, fun index:silent_Bob/1),
 			wf:info(?MODULE,"res1 -> ~p~n",[R1]),
 			kvs:put(#user{id=Botname, feed_id=Room, username="silent_bob"}),
 			n2o_async:send(Botname, {init,Botname});
@@ -67,7 +67,7 @@ event(init) ->
 			{error,not_found} ->
 			% если бота в канале ещё нет, то запустим его	
 				wf:info(?MODULE,"START ~p~n",[Botname2]),
-				R2 = wf:async(Botname2,fun index:pisikak/1),
+				R2 = wf:async(Botname2, fun index:pisikak/1),
 				wf:info(?MODULE,"res2 -> ~p~n",[R2]),
 				kvs:put(#user{id=Botname2, feed_id=Room, username="pisikak"}),
 				n2o_async:send(Botname2, {init,Botname2});
@@ -271,6 +271,7 @@ loop2(M) ->
 silent_Bob({stop,Botname}) -> 
 	wf:info(?MODULE,"*silent Bob[~p] *Exit~n",[self()]),
 	wf:info(?MODULE,"*silent Bob is slowing down gracefully now...~n",[]),
+	n2o_async:stop(Botname),
 	% освободить имя
 	wf:unreg({chatbot,Botname}),
 	User = filename:basename(Botname),
@@ -326,6 +327,7 @@ silent_Bob(#{type := question, from := Inquirer, to := Botname, message := Messa
 pisikak({stop,Botname}) -> 
 	wf:info(?MODULE,"*pisikak[~p] *Exit~n",[self()]),
 	wf:info(?MODULE,"*pisikak is slowing down gracefully now...~n",[]),
+	n2o_async:stop(Botname),
 	% освободить имя
 	wf:unreg({chatbot,Botname}),
 	User = filename:basename(Botname),
