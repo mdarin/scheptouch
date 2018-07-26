@@ -77,7 +77,8 @@ event(init) ->
 				ok 
 	end,
 	% подгрузить историю переписки
-	[event({client,{E#entry.from, E#entry.media}}) 
+	%[event({client,{E#entry.from, E#entry.media}}) 
+	[wf:send({topic,Room}, {client,{E#entry.from, E#entry.media}})
 		|| E <- kvs:entries(kvs:get(feed,{room,Room}),entry,10)];
 
 
@@ -112,17 +113,17 @@ event(logout) ->
 			Botname2 = Room ++ "/" ++ "pisikak",
 			% slow down gracefully
 			wf:send({chatbot,Botname}, {stop,Botname}),
-			wf:send({chatbot,Botname2}, {stop,Botname2}),
+			wf:send({chatbot,Botname2}, {stop,Botname2});
 			% удалить канал
-			lists:foreach(
-				fun({feed,{room,Room},_,_,_,_}) -> kvs:delete(feed,{room,Room}); 
-						(_) -> ok
-			end, kvs:all(feed)),
-			% удалить пользователей 
-			lists:foreach(
-				fun({user,Fullname,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_}) -> kvs:delete(user,Fullname); 
-						(_) -> ok 
-			end, kvs:all(user));
+	%		lists:foreach(
+	%			fun({feed,{room,Room},_,_,_,_}) -> kvs:delete(feed,{room,Room}); 
+	%					(_) -> ok
+	%		end, kvs:all(feed)),
+	%		% удалить пользователей 
+	%		lists:foreach(
+	%			fun({user,Fullname,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_}) -> kvs:delete(user,Fullname); 
+	%					(_) -> ok 
+	%		end, kvs:all(user));
 		true -> 
 			wf:info(?MODULE,"KEEP ALIVE CHANNEL ~p~n",[Room]),
 			ok
@@ -272,17 +273,16 @@ loop2(M) ->
 silent_Bob({stop,Botname}) -> 
 	wf:info(?MODULE,"*silent Bob[~p] *Exit~n",[self()]),
 	wf:info(?MODULE,"*silent Bob is slowing down gracefully now...~n",[]),
+	% становить процесс
 	n2o_async:stop(Botname),
 	% освободить имя
 	wf:unreg({chatbot,Botname}),
 	User = filename:basename(Botname),
 	Room = filename:dirname(Botname), 
+	% удалить бота
+	kvs:delete(user,Botname),
 	% удалить канал
-	lists:foreach(
-		fun({feed,{room,Room},_,_,_,_}) -> kvs:delete(feed,{room,Room}); 
-				(_) -> ok
-	end, kvs:all(feed)),
-	ok;
+	kvs:delete(feed,{room,Room});
 
 
 silent_Bob({init,Botname}) ->
@@ -328,17 +328,16 @@ silent_Bob(#{type := question, from := Inquirer, to := Botname, message := Messa
 pisikak({stop,Botname}) -> 
 	wf:info(?MODULE,"*pisikak[~p] *Exit~n",[self()]),
 	wf:info(?MODULE,"*pisikak is slowing down gracefully now...~n",[]),
+	% становить процесс
 	n2o_async:stop(Botname),
 	% освободить имя
 	wf:unreg({chatbot,Botname}),
 	User = filename:basename(Botname),
 	Room = filename:dirname(Botname), 
+	% удалить бота
+	kvs:delete(user,Botname),
 	% удалить канал
-	lists:foreach(
-		fun({feed,{room,Room},_,_,_,_}) -> kvs:delete(feed,{room,Room}); 
-				(_) -> ok
-	end, kvs:all(feed)),
-	ok;
+	kvs:delete(feed,{room,Room}); 
 
 
 pisikak({init,Botname}) ->
