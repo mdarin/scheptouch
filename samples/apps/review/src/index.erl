@@ -26,6 +26,33 @@ main() ->
 
 event(init) ->
 	wf:info(?MODULE,"*Init~n",[]),
+	UsersCount = length(kvs:all(user)),
+	Children = supervisor:which_children(n2o),
+	wf:info(?MODULE,"=====~n**children -> ~p~n", [Children]),
+%[{{async,{"/pisikak",
+%          <<"31c89dba91d5c66097a46df6fc9076a0">>}},
+%  <0.6109.0>,worker,
+%  [n2o_async]},
+% {{async,{"/silent_bob",
+%          <<"31c89dba91d5c66097a46df6fc9076a0">>}},
+%  <0.6107.0>,worker,
+%  [n2o_async]},
+% {{async,{"room1/pisikak",
+%          <<"31c89dba91d5c66097a46df6fc9076a0">>}},
+%  <0.4109.0>,worker,
+%  [n2o_async]},
+% {{async,{"room1/silent_bob",
+%          <<"31c89dba91d5c66097a46df6fc9076a0">>}},
+%  <0.4367.0>,worker,
+%  [n2o_async]},
+% {{async,{"looper2",<<"31c89dba91d5c66097a46df6fc9076a0">>}},
+%  <0.3214.0>,worker,
+%  [n2o_async]},
+% {{async,{"looper",<<"31c89dba91d5c66097a46df6fc9076a0">>}},
+%  <0.3211.0>,worker,
+%  [n2o_async]},
+% {{system,"timer"},<0.2962.0>,worker,[n2o]}]
+
 	User = user(),
 	Room = room(),
 	Fullname = Room ++ "/" ++ User,
@@ -37,7 +64,7 @@ event(init) ->
 	wf:update(upload,#upload{id=upload}),
 	SessionID = n2o_session:session_id(), 
 	% примкнуть к ОПГ процессов по критерию "команта"
- 	wf:reg({topic,Room}),
+	wf:reg({topic,Room}),
 	% создать парочку идиотов прислужников дьявола
 	Res = wf:async("looper",fun index:loop/1),
 	n2o_async:send("looper","waterline"),
@@ -83,19 +110,12 @@ event(init) ->
 
 
 event(terminate) ->
-	wf:info(?MODULE,"*Teriminate~n",[]);
-
-
-event(logout) ->
-	wf:info(?MODULE,"*Logout~n",[]),
-	% получить данные из параметров запроса
+	wf:info(?MODULE,"*Teriminate~n",[]),
 	User = user(),
 	Room = room(),
 	wf:info(?MODULE,"room -> ~p~n",[Room]),
 	wf:info(?MODULE,"user -> ~p~n",[User]),
-	% сжечь карточку выздоравливающего пациента
 	Fullname = Room ++ "/" ++ User,
-	kvs:delete(user,Fullname),
 	% сколько там ещё в палате?
 	Users = lists:foldl(
 		fun({user,Fullname,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_},Count) -> Count + 1;
@@ -112,14 +132,10 @@ event(logout) ->
 			Botname = Room ++ "/" ++ "silent_bob",
 			Botname2 = Room ++ "/" ++ "pisikak",
 
-			kvs:delete(user,Botname),
-			kvs:delete(user,Botname2),
-
 			% slow down gracefully
+			wf:info(?MODULE,"SLOW DOWN BOTS~n",[]),
 			wf:send({chatbot,Botname}, {stop,Botname}),
 			wf:send({chatbot,Botname2}, {stop,Botname2});
-
-			
 
 			% удалить канал
 	%		lists:foreach(
@@ -135,6 +151,19 @@ event(logout) ->
 			wf:info(?MODULE,"KEEP ALIVE CHANNEL ~p~n",[Room]),
 			ok
 	end,
+	ok;
+
+
+event(logout) ->
+	wf:info(?MODULE,"*Logout~n",[]),
+	% получить данные из параметров запроса
+	User = user(),
+	Room = room(),
+	wf:info(?MODULE,"room -> ~p~n",[Room]),
+	wf:info(?MODULE,"user -> ~p~n",[User]),
+	% сжечь карточку выздоравливающего пациента
+	Fullname = Room ++ "/" ++ User,
+	kvs:delete(user,Fullname),
 	wf:logout(),
 	% metallica:play('turn the page'),
 	wf:redirect("login.htm");
@@ -281,15 +310,19 @@ silent_Bob({stop,Botname}) ->
 	wf:info(?MODULE,"*silent Bob[~p] *Exit~n",[self()]),
 	wf:info(?MODULE,"*silent Bob is slowing down gracefully now...~n",[]),
 	% становить процесс
-	n2o_async:stop(Botname),
+	n2o_async:stop({chatbot,Botname}),
+	%n2o_async:stop(Botname),
 	% освободить имя
 	wf:unreg({chatbot,Botname}),
-	User = filename:basename(Botname),
 	Room = filename:dirname(Botname), 
+	User = filename:basename(Botname),
+	wf:info(?MODULE,"room -> ~p~n",[Room]),
+	wf:info(?MODULE,"user -> ~p~n",[User]),
 	% удалить бота
-%	kvs:delete(user,Botname),
+	kvs:delete(user,Botname),
 	% удалить канал
-	kvs:delete(feed,{room,Room});
+	%kvs:delete(feed,{room,Room}),
+	wf:info(?MODULE,"*silent_bob has stopped now~n",[]);
 
 
 silent_Bob({init,Botname}) ->
@@ -332,19 +365,24 @@ silent_Bob(#{type := question, from := Inquirer, to := Botname, message := Messa
 % *Играет музыка*
 % "..он молчит и ничего не делает Пи-Си-Как!"
 % 
+
 pisikak({stop,Botname}) -> 
 	wf:info(?MODULE,"*pisikak[~p] *Exit~n",[self()]),
 	wf:info(?MODULE,"*pisikak is slowing down gracefully now...~n",[]),
-	% становить процесс
-	n2o_async:stop(Botname),
+	% oстановить процесс
+	n2o_async:stop({chatbot,Botname}),
 	% освободить имя
 	wf:unreg({chatbot,Botname}),
-	User = filename:basename(Botname),
 	Room = filename:dirname(Botname), 
+	User = filename:basename(Botname),
+	wf:info(?MODULE,"room -> ~p~n",[Room]),
+	wf:info(?MODULE,"user -> ~p~n",[User]),
 	% удалить бота
-%	kvs:delete(user,Botname),
+	kvs:delete(user,Botname),
 	% удалить канал
-	kvs:delete(feed,{room,Room}); 
+	%kvs:delete(feed,{room,Room}), 
+	wf:info(?MODULE,"*pisikak has stopped now~n",[]),
+	wf:flush();
 
 
 pisikak({init,Botname}) ->

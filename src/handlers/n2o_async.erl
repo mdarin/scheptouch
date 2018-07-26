@@ -34,10 +34,13 @@ stop(Name) -> stop(async,{Name,key()}).
 stop(Class,Name) ->
     case n2o_async:pid({Class,Name}) of
         Pid when is_pid(Pid) ->
+						wf:info(?MODULE," *Stop terminate and delete child -> ~p~n", [Name]),
             #handler{group=Group} = Async = send(Pid,{get}),
             [ supervisor:F(Group,{Class,Name})||F<-[terminate_child,delete_child]],
             wf:cache({Class,Name},undefined), Async;
-        Data -> {error,{not_pid,Data}} end.
+        Data -> 
+					wf:info(?MODULE," *Stop Error child -> ~p~n", [Name]),			
+					{error,{not_pid,Data}} end.
 start(#handler{class=Class,name=Name,module=Module,group=Group} = Async) ->
     ChildSpec = {{Class,Name},{?MODULE,start_link,[Async]},transient,5000,worker,[Module]},
     wf:info(?MODULE,"Async Start Attempt ~p~n",[Async#handler{config=[]}]),
