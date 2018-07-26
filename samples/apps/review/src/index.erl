@@ -51,7 +51,6 @@ event(init) ->
 		{error,not_found} ->
 		% если бота в канале ещё нет, то запустим его	
 			wf:info(?MODULE,"START ~p~n",[Botname]),
-			wf:unreg({chatbot,Botname}),
 			R1 = wf:async(Botname, fun index:silent_Bob/1),
 			wf:info(?MODULE,"res1 -> ~p~n",[R1]),
 			kvs:put(#user{id=Botname, feed_id=Room, username="silent_bob"}),
@@ -68,7 +67,6 @@ event(init) ->
 			{error,not_found} ->
 			% если бота в канале ещё нет, то запустим его	
 				wf:info(?MODULE,"START ~p~n",[Botname2]),
-				wf:unreg({chatbot,Botname}),
 				R2 = wf:async(Botname2, fun index:pisikak/1),
 				wf:info(?MODULE,"res2 -> ~p~n",[R2]),
 				kvs:put(#user{id=Botname2, feed_id=Room, username="pisikak"}),
@@ -113,9 +111,16 @@ event(logout) ->
 			% санитары больше нужны...
 			Botname = Room ++ "/" ++ "silent_bob",
 			Botname2 = Room ++ "/" ++ "pisikak",
+
+			kvs:delete(user,Botname),
+			kvs:delete(user,Botname2),
+
 			% slow down gracefully
 			wf:send({chatbot,Botname}, {stop,Botname}),
 			wf:send({chatbot,Botname2}, {stop,Botname2});
+
+			
+
 			% удалить канал
 	%		lists:foreach(
 	%			fun({feed,{room,Room},_,_,_,_}) -> kvs:delete(feed,{room,Room}); 
@@ -282,7 +287,7 @@ silent_Bob({stop,Botname}) ->
 	User = filename:basename(Botname),
 	Room = filename:dirname(Botname), 
 	% удалить бота
-	kvs:delete(user,Botname),
+%	kvs:delete(user,Botname),
 	% удалить канал
 	kvs:delete(feed,{room,Room});
 
@@ -337,7 +342,7 @@ pisikak({stop,Botname}) ->
 	User = filename:basename(Botname),
 	Room = filename:dirname(Botname), 
 	% удалить бота
-	kvs:delete(user,Botname),
+%	kvs:delete(user,Botname),
 	% удалить канал
 	kvs:delete(feed,{room,Room}); 
 
