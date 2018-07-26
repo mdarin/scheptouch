@@ -37,7 +37,7 @@ event(init) ->
 	wf:update(upload,#upload{id=upload}),
 	SessionID = n2o_session:session_id(), 
 	% примкнуть к ОПГ процессов по критерию "команта"
-	wf:reg({topic,Room}),
+ 	wf:reg({topic,Room}),
 	% создать парочку идиотов прислужников дьявола
 	Res = wf:async("looper",fun index:loop/1),
 	n2o_async:send("looper","waterline"),
@@ -51,6 +51,7 @@ event(init) ->
 		{error,not_found} ->
 		% если бота в канале ещё нет, то запустим его	
 			wf:info(?MODULE,"START ~p~n",[Botname]),
+			wf:unreg({chatbot,Botname}),
 			R1 = wf:async(Botname, fun index:silent_Bob/1),
 			wf:info(?MODULE,"res1 -> ~p~n",[R1]),
 			kvs:put(#user{id=Botname, feed_id=Room, username="silent_bob"}),
@@ -67,6 +68,7 @@ event(init) ->
 			{error,not_found} ->
 			% если бота в канале ещё нет, то запустим его	
 				wf:info(?MODULE,"START ~p~n",[Botname2]),
+				wf:unreg({chatbot,Botname}),
 				R2 = wf:async(Botname2, fun index:pisikak/1),
 				wf:info(?MODULE,"res2 -> ~p~n",[R2]),
 				kvs:put(#user{id=Botname2, feed_id=Room, username="pisikak"}),

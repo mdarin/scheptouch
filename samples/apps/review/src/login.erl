@@ -24,42 +24,42 @@ event(init) ->
 	wf:info(?MODULE,"*Init",[]),
 
 	% почистить зомбочаты
-	CleanUp = fun(Fullname) ->	
-		Room = filename:dirname(Fullname),
-		Users = lists:foldl(
-			fun({user,Fullname,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_},Count) -> Count + 1;
-					(_,Count) -> Count
-			end, 
-		0, kvs:all(user)),
-		wf:info(?MODULE,"ucount -> ~p~n",[Users]),
-		% чекнуть шизофрению
-		if 
-			Users < 3 -> 
-			% если пользоватлеь осталось меньше 3х, значит в канале остались только боты
-				wf:info(?MODULE,"REMOVE CHANNEL ~p~n",[Room]),
-				% санитары больше нужны...
-				Botname = Room ++ "/" ++ "silent_bob",
-				Botname2 = Room ++ "/" ++ "pisikak",
-				% slow down gracefully
-				wf:send({chatbot,Botname}, {stop,Botname}),
-				wf:send({chatbot,Botname2}, {stop,Botname2}),
-				% удалить канал
-				lists:foreach(
-					fun({feed,{room,Room},_,_,_,_}) -> kvs:delete(feed,{room,Room}); 
-							(_) -> ok
-				end, kvs:all(feed)),
-				% удалить пользователей 
-				lists:foreach(
-					fun({user,Fullname,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_}) -> kvs:delete(user,Fullname); 
-							(_) -> ok 
-				end, kvs:all(user));
-			true -> 
-				wf:info(?MODULE,"KEEP ALIVE CHANNEL ~p~n",[Room]),
-				ok
-		end
-	end,
-	wf:info(?MODULE,"*Clean up zombo-topics~n",[]),
-	[CleanUp(U#user.id) || U <- kvs:all(user)],
+%	CleanUp = fun(Fullname) ->	
+%%		Room = filename:dirname(Fullname),
+%		Users = lists:foldl(
+%			fun({user,Fullname,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_},Count) -> Count + 1;
+%					(_,Count) -> Count
+%			end, 
+%		0, kvs:all(user)),
+%		wf:info(?MODULE,"ucount -> ~p~n",[Users]),
+%		% чекнуть шизофрению
+%		if 
+%			Users < 3 -> 
+%			% если пользоватлеь осталось меньше 3х, значит в канале остались только боты
+%				wf:info(?MODULE,"REMOVE CHANNEL ~p~n",[Room]),
+%				% санитары больше нужны...
+%				Botname = Room ++ "/" ++ "silent_bob",
+%				Botname2 = Room ++ "/" ++ "pisikak",
+%				% slow down gracefully
+%				wf:send({chatbot,Botname}, {stop,Botname}),
+%				wf:send({chatbot,Botname2}, {stop,Botname2}),
+%				% удалить канал
+%				lists:foreach(
+%					fun({feed,{room,Room},_,_,_,_}) -> kvs:delete(feed,{room,Room}); 
+%							(_) -> ok
+%				end, kvs:all(feed)),
+%				% удалить пользователей 
+%				lists:foreach(
+%					fun({user,Fullname,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_}) -> kvs:delete(user,Fullname); 
+%							(_) -> ok 
+%				end, kvs:all(user));
+%			true -> 
+%				wf:info(?MODULE,"KEEP ALIVE CHANNEL ~p~n",[Room]),
+%				ok
+%		end
+%	end,
+%	wf:info(?MODULE,"*Clean up zombo-topics~n",[]),
+%	[CleanUp(U#user.id) || U <- kvs:all(user)],
 	% получить уже обжитые фиды
 	Feeds = kvs:all(feed),
 	%wf:info(?MODULE,"feeds -> ~p~n",[Feeds]),	
